@@ -91,7 +91,7 @@ setup_tf_and_ngraph_wheels() {
     which python
 
     # pip install "${TF_WHEEL}"
-    pip install tensorflow=1.12.0
+    pip install tensorflow==1.12.0
 
     pip install "${NGTF_WHEEL}"
 
