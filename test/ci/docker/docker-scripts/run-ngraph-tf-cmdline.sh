@@ -58,10 +58,11 @@ setup_tf_and_ngraph_wheels() {
 
     # ----- Pre-Wheel-Install Sanity Checks -----------------------------------
 
-    if [ ! -f "${TF_WHEEL}" ] ; then
-        ( >&2 echo "TensorFlow wheel not found at ${TF_WHEEL}" )
-        exit 1
-    fi
+    # CRL-DISABLED: Using a TF wheel installed from internet, so this check is disabled
+    # if [ ! -f "${TF_WHEEL}" ] ; then
+    #     ( >&2 echo "TensorFlow wheel not found at ${TF_WHEEL}" )
+    #     exit 1
+    # fi
 
     if [ ! -f "${NGTF_WHEEL}" ] ; then
         ( >&2 echo "ngraph wheel not found at ${NGTF_WHEEL}" )
