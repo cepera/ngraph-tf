@@ -91,9 +91,13 @@ setup_tf_and_ngraph_wheels() {
     which python
 
     # pip install "${TF_WHEEL}"
-    pip install tensorflow==1.12.0
+    pip_cmd='pip install tensorflow==1.12.0'
+    echo "Running pip command to install tensorflow: ${pip_cmd}"
+    ${pip_cmd}
 
-    pip install "${NGTF_WHEEL}"
+    pip_cmd="pip install ${NGTF_WHEEL}"
+    echo "Running pip command to install ngraph_bridge: ${pip_cmd}"
+    ${pip_cmd}
 
     # ----- Pre-Wheel-Install Sanity Checks ------------------------------------
 
