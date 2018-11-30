@@ -89,7 +89,8 @@ setup_tf_and_ngraph_wheels() {
     echo "Python being used is:"
     which python
 
-    pip install "${TF_WHEEL}"
+    # pip install "${TF_WHEEL}"
+    pip install tensorflow=1.12.0
 
     pip install "${NGTF_WHEEL}"
 
