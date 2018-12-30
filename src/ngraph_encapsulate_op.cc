@@ -209,8 +209,8 @@ class NGraphEncapsulateOp : public OpKernel {
   // TODO(amprocte): this needs to be made thread-safe (compilation cache OK?).
   void Compute(OpKernelContext* ctx) override {
     std::lock_guard<std::mutex> lock(m_compute_lock);
-    NGRAPH_VLOG(4) << "NGraphEncapsulateOp::Compute starting for cluster "
-                   << m_ngraph_cluster;
+    std::cout << "NGraphEncapsulateOp::Compute starting for cluster "
+                   << m_ngraph_cluster << "\n";
 
     NGRAPH_VLOG(4) << "Got backend of type: " << m_op_backend_name;
     ng::runtime::Backend* op_backend =
@@ -445,7 +445,6 @@ class NGraphEncapsulateOp : public OpKernel {
       output_caches[i] = std::make_pair(current_dst_ptr, current_tv);
       ng_outputs.push_back(current_tv);
     }
-
     NGRAPH_VLOG(4)
         << "NGraphEncapsulateOp::Compute allocated result tensors for cluster "
         << m_ngraph_cluster;
@@ -454,12 +453,15 @@ class NGraphEncapsulateOp : public OpKernel {
     {
       // mutex_lock l(s_ng_backend_mutex);
       // std::lock_guard<std::mutex> lock(backend_mutex_ptr);
+      cout << "HANG: encapsulate compute Lock<<---" << m_ngraph_cluster << "\n";
       BackendManager::LockBackend(m_op_backend_name);
+      cout << "HANG: encapsulate compute Lock done<<---" << m_ngraph_cluster << "\n";
       NGRAPH_VLOG(4)
           << "NGraphEncapsulateOp::Compute call starting for cluster "
           << m_ngraph_cluster;
       try {
-        op_backend->call(op_backend->compile(ng_function), ng_outputs,
+        auto tmp = op_backend->compile(ng_function);
+        op_backend->call(tmp, ng_outputs,
                          ng_inputs);
       } catch (const std::exception& exp) {
         OP_REQUIRES(ctx, false,
@@ -471,11 +473,12 @@ class NGraphEncapsulateOp : public OpKernel {
             ctx, false,
             errors::Internal("Error in executing the nGraph computation\n"));
       }
+      cout << "HANG: encapsulate compute Unlock<<---" << m_ngraph_cluster << "\n";
       BackendManager::UnlockBackend(m_op_backend_name);
+      cout << "HANG: encapsulate compute Unlock done<<---" << m_ngraph_cluster << "\n";
     }
     NGRAPH_VLOG(4) << "NGraphEncapsulateOp::Compute call done for cluster "
                    << m_ngraph_cluster;
-
     // Copy value to host if backend is not CPU
     try {
       if (m_op_backend_name != "CPU") {
@@ -509,6 +512,7 @@ class NGraphEncapsulateOp : public OpKernel {
     NGRAPH_VLOG(4)
         << "NGraphEncapsulateOp::Compute done marking fresh for cluster "
         << m_ngraph_cluster;
+    cout << "HANG: Compute finishing\n";
   }  // end compute
 
  private:

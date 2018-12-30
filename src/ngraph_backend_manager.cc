@@ -63,7 +63,9 @@ ng::runtime::Backend* BackendManager::GetBackend(const string& backend_name) {
 
 // LockBackend
 void BackendManager::LockBackend(const string& backend_name) {
+  cout << "HANG: HERE1\n";
   BackendManager::ng_backend_map_.at(backend_name)->backend_mutex.lock();
+  cout << "HANG: NOTHERE1\n";
 }
 
 // UnlockBackend
