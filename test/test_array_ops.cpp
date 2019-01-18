@@ -759,6 +759,52 @@ TEST(ArrayOps, SpaceToDepthNCHW) {
   }
 }  // end of op SpaceToDepthNCHW
 
+// Test SpaceToDepth with NCHW_VECT_C data format
+TEST(ArrayOps, SpaceToDepthNCHWVECTC) {
+  std::map<std::vector<int64>, int> input_map;
+  //input_map.insert(pair<std::vector<int64>, int>({1, 1, 2, 2, 4}, 2));
+  //input_map.insert(pair<std::vector<int64>, int>({1, 10, 5, 5, 4}, 5));
+  input_map.insert(pair<std::vector<int64>, int>({1, 2, 2, 2, 4}, 2));
+  //input_map.insert(pair<std::vector<int64>, int>({2, 3, 6, 3, 4}, 3));
+  //input_map.insert(pair<std::vector<int64>, int>({10, 10, 10, 10, 4}, 2));
+  //input_map.insert(pair<std::vector<int64>, int>({2, 1, 15, 3, 4}, 3));
+  //input_map.insert(pair<std::vector<int64>, int>({30, 30, 30, 30, 4}, 10));
+
+  vector<int> static_input_indexes = {};
+  vector<DataType> output_datatypes = {DT_FLOAT};
+  ops::SpaceToDepth::Attrs attrs;
+  attrs.data_format_ = "NCHW_VECT_C";
+
+  map<std::vector<int64>, int>::iterator iter;
+  for (iter = input_map.begin(); iter != input_map.end(); iter++) {
+    std::vector<int64> shape = iter->first;
+    int block_size = iter->second;
+    ASSERT_TRUE(shape[4]==4) << "The last dim for NCHW_VECT_C is expected to be 4";
+
+    Scope root = Scope::NewRootScope();
+    Tensor input_data(DT_FLOAT, TensorShape(shape));
+    std::vector<float> vv(shape[0]*shape[1]*shape[2]*shape[3]*shape[4]);
+    std::iota(vv.begin(), vv.end(), 0);
+    AssignInputValues<float>(input_data, vv);
+
+    auto R = ops::SpaceToDepth(root, input_data, block_size, attrs);
+    std::vector<Output> sess_run_fetchoutputs = {R};
+    OpExecuter opexecuter(root, "SpaceToDepth", static_input_indexes,
+                          output_datatypes, sess_run_fetchoutputs);
+
+    vector<Tensor> ngraph_outputs;
+    opexecuter.ExecuteOnNGraph(ngraph_outputs);
+
+    vector<Tensor> tf_outputs;
+    Tensor tf_result(DT_FLOAT, TensorShape({shape[0],shape[1]*block_size*block_size,(int)(shape[2]/block_size),(int)(shape[3]/block_size),shape[4]}));
+    AssignInputValues(tf_result, vv);
+    tf_outputs.push_back(tf_result);
+
+    // Compare NGraph and TF Outputs
+    Compare(tf_outputs, ngraph_outputs);
+  }
+}  // end of op SpaceToDepthNCHW_VECT_C
+
 // Test op: StridedSlice
 // In this test the begin, end and stride vectors have length < rank
 TEST(ArrayOps, StridedSliceTest1) {

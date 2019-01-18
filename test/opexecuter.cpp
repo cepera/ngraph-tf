@@ -142,8 +142,10 @@ void OpExecuter::RunTest(const string& ng_backend_name, float rtol,
 void OpExecuter::ExecuteOnTF(vector<Tensor>& tf_outputs) {
   DeactivateNGraph();
   ClientSession session(tf_scope_);
+  cout << "EX on TF\n";
   ASSERT_EQ(Status::OK(), session.Run(sess_run_fetchoutputs_, &tf_outputs))
       << "Failed to run opexecutor on TF";
+  cout << "DONE EX on TF\n";
   for (int i = 0; i < tf_outputs.size(); i++) {
     NGRAPH_VLOG(5) << " TF op " << i << tf_outputs[i].DebugString();
   }

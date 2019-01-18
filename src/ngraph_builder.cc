@@ -3267,7 +3267,7 @@ static Status TranslateSpaceToDepthOp(
 
   // Upper indexes will be the same for all strided slices
   std::vector<size_t> upper = {input_shape[0], input_shape[1], input_shape[2],
-                               input_shape[3]};
+                               input_shape[3], input_shape[4]};
   // Store the strided_slice result for concat
   std::vector<std::shared_ptr<ng::Node>> strided_slice_result;
 
@@ -3275,10 +3275,10 @@ static Status TranslateSpaceToDepthOp(
        counter_height++) {
     for (size_t counter_width = 0; counter_width < block_size;
          counter_width++) {
-      std::vector<size_t> begin = {0, 0, 0, 0};
+      std::vector<size_t> begin = {0, 0, 0, 0, 0};
       begin[width_index] = counter_width;
       begin[height_index] = counter_height;
-      std::vector<size_t> strides = {1, 1, 1, 1};
+      std::vector<size_t> strides = {1, 1, 1, 1, 1};
       strides[width_index] = size_t(block_size);
       strides[height_index] = size_t(block_size);
       strided_slice_result.push_back(
