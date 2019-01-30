@@ -561,6 +561,7 @@ Status AssignClusters(Graph* graph) {
           GetStaticInputs(dst, &static_inputs);
           bool is_static = std::find(static_inputs.begin(), static_inputs.end(),
                                      edge->dst_input()) != static_inputs.end();
+          bool is_not_const = src->type_string() != "Const";
           // 3 possible reasons here:
           // src dst lies in same cluster, so nothing to do (trivial cycle
           // induced in graphcycles)
@@ -569,7 +570,7 @@ Status AssignClusters(Graph* graph) {
           cluster_separation_reason[get_string_key(src_index, dst_index)]
               .push_back(src_index == dst_index
                              ? EdgeNonContractionReasons::SAMECLUSTER
-                             : (is_static
+                             : ((is_not_const && is_static)
                                     ? EdgeNonContractionReasons::STATICINPUT
                                     : EdgeNonContractionReasons::PATHEXISTS));
         }
