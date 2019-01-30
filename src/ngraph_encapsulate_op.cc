@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
+#include <chrono>
 #include <cstdlib>
 #include <mutex>
 #include <utility>
@@ -258,9 +259,17 @@ class NGraphEncapsulateOp : public OpKernel {
     // TODO(amprocte): Investigate performance of the compilation cache.
     if (it == m_ng_functions.end()) {
       NGRAPH_VLOG(1) << "Compilation cache miss: " << ctx->op_kernel().name();
+      auto start = std::chrono::high_resolution_clock::now();
       OP_REQUIRES_OK(
           ctx, Builder::TranslateGraph(input_shapes, static_input_map, &m_graph,
                                        ng_function));
+      auto end = std::chrono::high_resolution_clock::now();
+      std::cout << "NGTF-PROFILE: TF-->NG Translate: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                         start)
+                       .count()
+                << " ms"
+                << " Cluster: " << ctx->op_kernel().name() << std::endl;
 
       // Serialize to nGraph if needed
       if (std::getenv("NGRAPH_ENABLE_SERIALIZE") != nullptr) {
@@ -342,8 +351,17 @@ class NGraphEncapsulateOp : public OpKernel {
                 !m_freshness_tracker->IsFresh(current_src_ptr, ng_function));
             current_tv = last_tv;
           } else {
+            auto start = std::chrono::high_resolution_clock::now();
             current_tv = op_backend->create_tensor(ng_element_type, ng_shape,
                                                    current_src_ptr);
+            auto end = std::chrono::high_resolution_clock::now();
+            std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                      << " Create Tensor : "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(
+                             end - start)
+                             .count()
+                      << " ms" << std::endl;
+
             current_tv->set_stale(true);
           }
         } else {
@@ -356,13 +374,30 @@ class NGraphEncapsulateOp : public OpKernel {
             }
             current_tv = last_tv;
           } else {
+            auto start = std::chrono::high_resolution_clock::now();
             current_tv = op_backend->create_tensor(ng_element_type, ng_shape);
+            auto end = std::chrono::high_resolution_clock::now();
+            std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                      << " Create Tensor : "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(
+                             end - start)
+                             .count()
+                      << " ms" << std::endl;
+
             current_tv->set_stale(true);
           }
           if (current_tv->get_stale()) {
+            auto start = std::chrono::high_resolution_clock::now();
             current_tv->write(
                 current_src_ptr, 0,
                 current_tv->get_element_count() * ng_element_type.size());
+            auto end = std::chrono::high_resolution_clock::now();
+            std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                      << " Copy Tensor Host-->Device : "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(
+                             end - start)
+                             .count()
+                      << " ms" << std::endl;
           }
         }  // if (m_op_backend_name == "CPU")
       } catch (const std::exception& exp) {
@@ -402,7 +437,15 @@ class NGraphEncapsulateOp : public OpKernel {
       }
       TensorShape tf_shape(dims);
       Tensor* output_tensor = nullptr;
+      auto start = std::chrono::high_resolution_clock::now();
       OP_REQUIRES_OK(ctx, ctx->allocate_output(i, tf_shape, &output_tensor));
+      auto end = std::chrono::high_resolution_clock::now();
+      std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                << " TF-Allocate Tensor : "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                         start)
+                       .count()
+                << " ms" << std::endl;
 
       // Make sure the nGraph-inferred element type agrees with what TensorFlow
       // expected.
@@ -429,14 +472,30 @@ class NGraphEncapsulateOp : public OpKernel {
         if (current_dst_ptr == last_dst_ptr && last_tv != nullptr) {
           current_tv = last_tv;
         } else {
+          auto start = std::chrono::high_resolution_clock::now();
           current_tv = op_backend->create_tensor(ng_element_type, ng_shape,
                                                  current_dst_ptr);
+          auto end = std::chrono::high_resolution_clock::now();
+          std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                    << " Create Tensor output : "
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(
+                           end - start)
+                           .count()
+                    << " ms" << std::endl;
         }
       } else {
         if (last_tv != nullptr) {
           current_tv = last_tv;
         } else {
+          auto start = std::chrono::high_resolution_clock::now();
           current_tv = op_backend->create_tensor(ng_element_type, ng_shape);
+          auto end = std::chrono::high_resolution_clock::now();
+          std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                    << " Create Tensor output : "
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(
+                           end - start)
+                           .count()
+                    << " ms" << std::endl;
         }
       }  // if (m_op_backend_name == "CPU")
 
@@ -458,8 +517,16 @@ class NGraphEncapsulateOp : public OpKernel {
           << "NGraphEncapsulateOp::Compute call starting for cluster "
           << m_ngraph_cluster;
       try {
+        auto start = std::chrono::high_resolution_clock::now();
         op_backend->call(op_backend->compile(ng_function), ng_outputs,
                          ng_inputs);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "NGTF-PROFILE: nGraph Call : "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         end - start)
+                         .count()
+                  << " ms" << std::endl;
+
       } catch (const std::exception& exp) {
         BackendManager::UnlockBackend(m_op_backend_name);
         NgraphSerialize(
@@ -491,8 +558,16 @@ class NGraphEncapsulateOp : public OpKernel {
           std::shared_ptr<ng::runtime::Tensor> dst_tv;
           std::tie(dst_ptr, dst_tv) = output_caches[i];
           auto ng_element_type = dst_tv->get_element_type();
+          auto start = std::chrono::high_resolution_clock::now();
           dst_tv->read(dst_ptr, 0,
                        dst_tv->get_element_count() * ng_element_type.size());
+          auto end = std::chrono::high_resolution_clock::now();
+          std::cout << "NGTF-PROFILE: Backend: " << m_op_backend_name
+                    << " Copy Tensor output : "
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(
+                           end - start)
+                           .count()
+                    << " ms" << std::endl;
         }
       }
     } catch (const std::exception& exp) {
